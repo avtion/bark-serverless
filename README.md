@@ -59,7 +59,7 @@ bark-server的腾讯云SCF版本
 
 3. 保存
 
-# 发送消息提示failed to get token from env
+# 🥺 发送消息提示failed to get token from env
 
 请重复`使用说明`的过程添加key和token到云函数的环境变量
 
@@ -81,6 +81,6 @@ bark-server的腾讯云SCF版本
 
 - [bark-server]([https://github.com/Finb/bark-server](https://github.com/Finb/bark-server))
 
-# 开源声明
+# 📢 开源声明
 
 MIT License
