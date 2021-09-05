@@ -38,11 +38,10 @@ func RegisterDevice(c *gin.Context) {
 	// 如果有DeviceToken则跳到响应
 	if req.OldDeviceToken != "" {
 		req.DeviceKey, req.DeviceToken = req.OldDeviceKey, req.OldDeviceToken
-		goto respData
 	}
 
 	// 如果GET请求参数解析不到就从Body获取
-	if c.Request.Method == http.MethodPost {
+	if (req.DeviceKey == "" || req.DeviceToken == "") && c.Request.Method == http.MethodPost {
 		if err = c.ShouldBindBodyWith(req, binding.JSON); err != nil {
 			l.Error("设备注册失败", zap.Error(err))
 
@@ -66,7 +65,6 @@ func RegisterDevice(c *gin.Context) {
 		return
 	}
 
-respData:
 	l.Info(
 		"设备绑定信息",
 		zap.String("key", req.DeviceKey),
@@ -85,4 +83,16 @@ respData:
 		},
 		Timestamp: time.Now().Unix(),
 	})
+
+	// 写入数据库不影响核心业务
+	dbs := readDBFromCtx(c)
+	for _, db := range dbs {
+		if v, ok := db.(SaveToken); ok {
+			if err = v.SaveToken(req.DeviceKey, req.DeviceToken); err != nil {
+				l.Sugar().Errorf("save token failed, %v", err)
+				continue
+			}
+			l.Sugar().Infof("save token successfully, key: %s, token: %s", req.DeviceKey, req.DeviceToken)
+		}
+	}
 }
