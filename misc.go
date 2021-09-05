@@ -1,20 +1,11 @@
-package controller
+package main
 
 import (
 	"net/http"
 	"time"
 
-	"bark-serverless/router"
-
 	"github.com/gin-gonic/gin"
 )
-
-func init() {
-	router.AppendRouter(func(r *gin.Engine) {
-		r.GET("/ping", Ping)
-		r.GET("/healthz", Healthz)
-	})
-}
 
 func Ping(c *gin.Context) {
 	c.JSON(http.StatusOK, CommonResp{

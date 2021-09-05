@@ -1,4 +1,6 @@
-package controller
+package main
+
+import "gorm.io/gorm"
 
 // CommonResp 通用响应
 type CommonResp struct {
@@ -16,4 +18,11 @@ type DeviceInfo struct {
 	// compatible with old req
 	OldDeviceKey   string `form:"key,omitempty" json:"key,omitempty" xml:"key,omitempty" query:"key,omitempty"`
 	OldDeviceToken string `form:"devicetoken,omitempty" json:"devicetoken,omitempty" xml:"devicetoken,omitempty" query:"devicetoken,omitempty"`
+}
+
+// Token 模型
+type Token struct {
+	gorm.Model
+	Key   string `gorm:"not null,size:128;uniqueIndex:key_token" json:"key" bson:"key"`
+	Token string `gorm:"not null;size:128;uniqueIndex:key_token" json:"token" bson:"token"`
 }

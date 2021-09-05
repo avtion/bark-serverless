@@ -1,13 +1,9 @@
-package controller
+package main
 
 import (
 	"net/http"
-	"os"
 	"strings"
 	"time"
-
-	"bark-serverless/logger"
-	"bark-serverless/router"
 
 	"github.com/finb/bark-server/v2/apns"
 	"github.com/gin-gonic/gin"
@@ -15,26 +11,10 @@ import (
 	"go.uber.org/zap"
 )
 
-// DeviceKeyPrefix 环境变量中设备Key的前缀
-const DeviceKeyPrefix = "device_"
-
-func init() {
-	router.AppendRouter(func(r *gin.Engine) {
-		// v2
-		r.POST("/push", Push)
-
-		// 兼容
-		r.GET("/:device_key/:title", Push)
-		r.POST("/:device_key/:title", Push)
-
-		r.GET("/:device_key/:title/*body", Push)
-		r.POST("/:device_key/:title/*body", Push)
-	})
-}
-
+// Push 推送
 func Push(c *gin.Context) {
 	// 初始化日志
-	l := logger.GetGlobalLog().With(zap.String("router", "push"))
+	l := zap.L().With(zap.String("router", "push"))
 
 	// 初始化参数
 	var req = &apns.PushMessage{
@@ -84,11 +64,7 @@ func Push(c *gin.Context) {
 	}
 	body, isExist := c.Params.Get("body")
 	if isExist {
-		// 这里会有一个奇怪的问题，如果是body参数的话Gin不会把"/"忽略掉
-		if strings.HasPrefix(body, "/") {
-			body = strings.TrimPrefix(body, "/")
-		}
-		req.Body = body
+		req.Body = strings.TrimPrefix(body, "/")
 	}
 
 	// 如果设备的Key为空则中断流程
@@ -102,15 +78,19 @@ func Push(c *gin.Context) {
 		return
 	}
 
-	// 从环境变量中获取设备Key对应的Token
-	if req.DeviceToken, isExist = os.LookupEnv(DeviceKeyPrefix + req.DeviceKey); !isExist {
-		l.Error("failed to get token from env", zap.String("key", req.DeviceKey))
+	dbs := readDBFromCtx(c)
+	for _, db := range dbs { // 根据range特性, 如果dbs为nil会直接跳过循环
+		if v, ok := db.(LoadToken); ok {
+			req.DeviceToken, _ = v.LoadToken(req.DeviceKey)
+		}
+	}
+	if req.DeviceToken == "" {
+		l.Error("failed to get token from db", zap.String("key", req.DeviceKey))
 		c.AbortWithStatusJSON(http.StatusBadRequest, CommonResp{
 			Code:      http.StatusBadRequest,
-			Message:   "failed to get token from env",
+			Message:   "failed to get token from db",
 			Timestamp: time.Now().Unix(),
 		})
-		return
 	}
 
 	// 推送消息

@@ -1,30 +1,21 @@
-package controller
+package main
 
 import (
 	"net/http"
 	"time"
-
-	"bark-serverless/logger"
-	"bark-serverless/router"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"go.uber.org/zap"
 )
 
-func init() {
-	router.AppendRouter(func(r *gin.Engine) {
-		r.POST("/register", RegisterDevice)
-		r.GET("/register", RegisterDevice)
-	})
-}
-
+// RegisterDevice 注册设备
 func RegisterDevice(c *gin.Context) {
 	// 实现Bark-Server的注册路由
 	// 将会打印device_key到控制台，开发者需要手动将device_key配置到Serverless全局环境变量中
 
 	// 初始化日志
-	l := logger.GetGlobalLog().With(zap.String("router", "register"))
+	l := zap.L().With(zap.String("router", "register"))
 
 	// 初始化请求
 	var (
