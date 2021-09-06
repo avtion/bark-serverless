@@ -18,13 +18,10 @@ func Push(c *gin.Context) {
 
 	// 初始化参数
 	var req = &apns.PushMessage{
-		DeviceToken: "",
-		DeviceKey:   "",
-		Category:    "myNotificationCategory",
-		Title:       "",
-		Body:        "NoContent",
-		Sound:       "1107",
-		ExtParams:   make(map[string]interface{}),
+		Category:  "myNotificationCategory",
+		Body:      "NoContent",
+		Sound:     "1107",
+		ExtParams: make(map[string]interface{}),
 	}
 
 	// 首先尝试从请求内容体从获取参数
@@ -91,6 +88,11 @@ func Push(c *gin.Context) {
 			Message:   "failed to get token from db",
 			Timestamp: time.Now().Unix(),
 		})
+	}
+
+	// support group param for bark v1.2.0
+	if req.Group != "" {
+		req.ExtParams["group"] = req.Group
 	}
 
 	// 推送消息
