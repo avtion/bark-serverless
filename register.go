@@ -65,13 +65,11 @@ func RegisterDevice(c *gin.Context) {
 		return
 	}
 
-	l.Info(
-		"设备绑定信息",
-		zap.String("key", req.DeviceKey),
-		zap.String("token", req.DeviceToken),
-		zap.String("old_key", req.OldDeviceKey),
-		zap.String("old_token", req.OldDeviceToken),
+	l = l.With(
+		zap.String("key", req.DeviceKey), zap.String("token", req.DeviceToken),
+		zap.String("old_key", req.OldDeviceKey), zap.String("old_token", req.OldDeviceToken),
 	)
+	l.Info("设备绑定信息")
 
 	c.JSON(http.StatusOK, CommonResp{
 		Code:    http.StatusOK,
@@ -85,14 +83,13 @@ func RegisterDevice(c *gin.Context) {
 	})
 
 	// 写入数据库不影响核心业务
-	dbs := readDBFromCtx(c)
-	for _, db := range dbs {
+	for _, db := range readDBFromCtx(c) {
 		if v, ok := db.(SaveToken); ok {
 			if err = v.SaveToken(req.DeviceKey, req.DeviceToken); err != nil {
-				l.Sugar().Errorf("save token failed, %v", err)
+				l.Error("save token failed", zap.Error(err))
 				continue
 			}
-			l.Sugar().Infof("save token successfully, key: %s, token: %s", req.DeviceKey, req.DeviceToken)
+			l.Info("save token successfully", zap.String("dbName", db.Name()))
 		}
 	}
 }
