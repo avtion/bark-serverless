@@ -42,7 +42,7 @@ func main() {
 
 	// Gin
 	engine := gin.New()
-	setupDefaultRouter(engine.Use(writeDbToCtx(new(envDB), newSQLDB())))
+	setupDefaultRouter(engine.Use(writeDbToCtx(new(envDB), newSqlDB()), authMiddleware()))
 
 	switch mode := runMode(cast.ToUint(os.Getenv(runModeKey))); mode {
 	case runModeTencentSCF:
