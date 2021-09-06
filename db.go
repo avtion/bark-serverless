@@ -14,7 +14,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const ctxKey = "bark_serverless_token_db"
+const CtxDBKey = "bark_serverless_token_db"
 
 type (
 	Db interface {
@@ -30,7 +30,7 @@ type (
 
 // 如果没有db对象会直接返回nil
 func readDBFromCtx(c *gin.Context) []Db {
-	value, isExist := c.Get(ctxKey)
+	value, isExist := c.Get(CtxDBKey)
 	if !isExist {
 		return nil
 	}
@@ -50,7 +50,7 @@ func writeDbToCtx(dbs ...Db) gin.HandlerFunc {
 	}
 	return func(c *gin.Context) {
 		if len(tmp) > 0 {
-			c.Set(ctxKey, tmp)
+			c.Set(CtxDBKey, tmp)
 		}
 	}
 }
@@ -83,7 +83,7 @@ type sqlDB struct {
 } // 从 gorm.DB 对象读取 Token
 
 // 基于 GORM 支持 MysQL
-func newSQLDB() *sqlDB {
+func newSqlDB() *sqlDB {
 	var (
 		name      string
 		dialector gorm.Dialector
@@ -96,16 +96,16 @@ func newSQLDB() *sqlDB {
 			continue
 		}
 		switch strings.TrimPrefix(key, "dsn") {
-		case "postgresql":
+		case "postgresql": // eg. dsn_postgresql
 			name = "postgresql"
 			dialector = postgres.Open(dsn)
-		case "sqlserver":
+		case "sqlserver": // eg. dsn_sqlserver
 			name = "sqlserver"
 			dialector = sqlserver.Open(dsn)
-		case "clickhouse":
+		case "clickhouse": // eg. dsn_clickhouse
 			name = "clickhouse"
 			dialector = clickhouse.Open(dsn)
-		default:
+		default: // eg. dsn_*
 			name = "mysql"
 			dialector = mysql.Open(dsn)
 		}
