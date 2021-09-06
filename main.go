@@ -40,6 +40,12 @@ func main() {
 	// 初始化随机数种子
 	rand.Seed(time.Now().UnixNano())
 
+	// Token存储
+	var store = []TokenStore{new(env)}
+	if db := newDB(); db != nil {
+		store = append(store, db)
+	}
+
 	// Gin
 	engine := gin.New()
 	setupDefaultRouter(engine.Use(WriteTokenStoreToCtx(store...)))

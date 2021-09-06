@@ -12,12 +12,13 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
 )
 
 const CtxDBKey = "bark_serverless_token_db"
 
 type (
-	Db interface {
+	TokenStore interface {
 		Name() string
 	}
 	LoadToken interface {
@@ -28,45 +29,38 @@ type (
 	}
 )
 
-// 如果没有db对象会直接返回nil
-func readDBFromCtx(c *gin.Context) []Db {
+// ReadTokenStoreFromCtx 如果没有Store对象会直接返回nil
+func ReadTokenStoreFromCtx(c *gin.Context) []TokenStore {
 	value, isExist := c.Get(CtxDBKey)
 	if !isExist {
 		return nil
 	}
-	dbs, isExist := value.([]Db)
+	dbs, isExist := value.([]TokenStore)
 	if !isExist {
 		return nil
 	}
 	return dbs
 }
 
-func writeDbToCtx(dbs ...Db) gin.HandlerFunc {
-	tmp := make([]Db, 0, len(dbs))
-	for _, db := range dbs {
-		if db != nil {
-			tmp = append(tmp, db)
-		}
-	}
+// WriteTokenStoreToCtx 上下文中写入Store对象
+func WriteTokenStoreToCtx(dbs ...TokenStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if len(tmp) > 0 {
-			c.Set(CtxDBKey, tmp)
-		}
+		c.Set(CtxDBKey, dbs)
 	}
 }
 
-type envDB struct{} // 从 Env 环境读取 Token - 不支持写入 token
+type env struct{} // 从 Env 环境读取 Token - 不支持写入 token
 
 var _ interface {
-	Db
+	TokenStore
 	LoadToken
-} = (*envDB)(nil)
+} = (*env)(nil)
 
-func (*envDB) Name() string {
+func (*env) Name() string {
 	return "env"
 }
 
-func (*envDB) LoadToken(key string) (string, error) {
+func (*env) LoadToken(key string) (string, error) {
 	// 环境变量中设备Key的前缀
 	const deviceKeyPrefix = "device_"
 
@@ -77,13 +71,13 @@ func (*envDB) LoadToken(key string) (string, error) {
 	return token, nil
 }
 
-type sqlDB struct {
+type gormDB struct {
 	name string
 	*gorm.DB
 } // 从 gorm.DB 对象读取 Token
 
 // 基于 GORM 支持 MysQL
-func newSqlDB() *sqlDB {
+func newDB() *gormDB {
 	var (
 		name      string
 		dialector gorm.Dialector
@@ -115,30 +109,36 @@ func newSqlDB() *sqlDB {
 		return nil
 	}
 
-	db, err := gorm.Open(dialector, &gorm.Config{})
+	db, err := gorm.Open(dialector, &gorm.Config{
+		NamingStrategy: schema.NamingStrategy{
+			SingularTable: true,
+		},
+	})
 	if err != nil {
+		zap.L().Error("connect to db failed", zap.Error(err))
 		return nil
 	}
 
 	// 迁移数据库 - 迁移失败不会影响数据库实例初始化
 	_ = db.AutoMigrate(new(Token))
 
-	zap.S().Infof("load sql db successfully, db: %s, dialector: %s", name, dialector.Name())
-	return &sqlDB{
+	zap.L().With(zap.String("db", name), zap.String("dialector", dialector.Name())).
+		Info("load db successfully")
+	return &gormDB{
 		name: name,
 		DB:   db,
 	}
 }
 
 var _ interface {
-	Db
+	TokenStore
 	LoadToken
 	SaveToken
-} = (*sqlDB)(nil)
+} = (*gormDB)(nil)
 
-func (s *sqlDB) Name() string { return s.name }
+func (s *gormDB) Name() string { return s.name }
 
-func (s *sqlDB) LoadToken(key string) (string, error) {
+func (s *gormDB) LoadToken(key string) (string, error) {
 	if key == "" {
 		return "", errors.New("key is empty")
 	}
@@ -149,7 +149,7 @@ func (s *sqlDB) LoadToken(key string) (string, error) {
 	return t.Token, nil
 }
 
-func (s *sqlDB) SaveToken(key, token string) error {
+func (s *gormDB) SaveToken(key, token string) error {
 	if key == "" {
 		return errors.New("key is empty")
 	}
@@ -157,8 +157,20 @@ func (s *sqlDB) SaveToken(key, token string) error {
 		return errors.New("token is empty")
 	}
 	t := &Token{Key: key}
-	s.DB.First(t)
-	if err := s.DB.Save(&Token{Model: gorm.Model{ID: t.ID}, Key: key, Token: token}).Error; err != nil {
+
+	if errors.Is(s.DB.Where(t).First(t).Error, gorm.ErrRecordNotFound) {
+		t.Token = token
+		db := s.DB.Create(t)
+		if err := db.Error; err != nil {
+			zap.L().Error("create token failed", zap.Error(err))
+			return err
+		}
+		zap.L().Info("create token success", zap.Uint("id", t.ID))
+		return nil
+	}
+
+	t.Token = token
+	if err := s.DB.Updates(t).Error; err != nil {
 		return err
 	}
 	return nil

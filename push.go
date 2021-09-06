@@ -75,19 +75,20 @@ func Push(c *gin.Context) {
 		return
 	}
 
-	dbs := readDBFromCtx(c)
-	for _, db := range dbs { // 根据range特性, 如果dbs为nil会直接跳过循环
-		if v, ok := db.(LoadToken); ok {
+	stores := ReadTokenStoreFromCtx(c)
+	for _, store := range stores { // 根据range特性, 如果dbs为nil会直接跳过循环
+		if v, ok := store.(LoadToken); ok {
 			req.DeviceToken, _ = v.LoadToken(req.DeviceKey)
 		}
 	}
 	if req.DeviceToken == "" {
-		l.Error("failed to get token from db", zap.String("key", req.DeviceKey))
+		l.Error("failed to get token from env or db", zap.String("key", req.DeviceKey))
 		c.AbortWithStatusJSON(http.StatusBadRequest, CommonResp{
 			Code:      http.StatusBadRequest,
-			Message:   "failed to get token from db",
+			Message:   "failed to get token from ene or db",
 			Timestamp: time.Now().Unix(),
 		})
+		return
 	}
 
 	// support group param for bark v1.2.0
@@ -111,4 +112,5 @@ func Push(c *gin.Context) {
 		Message:   "success",
 		Timestamp: time.Now().Unix(),
 	})
+	l.Info("push message success")
 }

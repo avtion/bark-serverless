@@ -23,6 +23,6 @@ type DeviceInfo struct {
 // Token 模型
 type Token struct {
 	gorm.Model
-	Key   string `gorm:"not null,size:128;uniqueIndex:key_token" json:"key" bson:"key"`
+	Key   string `gorm:"not null;size:128;uniqueIndex:key_token" json:"key" bson:"key"`
 	Token string `gorm:"not null;size:128;uniqueIndex:key_token" json:"token" bson:"token"`
 }
