@@ -18,13 +18,10 @@ func RegisterDevice(c *gin.Context) {
 	l := zap.L().With(zap.String("router", "register"))
 
 	// 初始化请求
-	var (
-		req = new(DeviceInfo)
-		err error
-	)
+	var req = new(DeviceInfo)
 
 	// 先尝试从GET请求中获取device_key
-	if err = c.ShouldBindQuery(req); err != nil {
+	if err := c.ShouldBindQuery(req); err != nil {
 		l.Error("设备注册失败", zap.Error(err))
 
 		c.AbortWithStatusJSON(http.StatusInternalServerError, CommonResp{
@@ -42,7 +39,7 @@ func RegisterDevice(c *gin.Context) {
 
 	// 如果GET请求参数解析不到就从Body获取
 	if (req.DeviceKey == "" || req.DeviceToken == "") && c.Request.Method == http.MethodPost {
-		if err = c.ShouldBindBodyWith(req, binding.JSON); err != nil {
+		if err := c.ShouldBindBodyWith(req, binding.JSON); err != nil {
 			l.Error("设备注册失败", zap.Error(err))
 
 			c.AbortWithStatusJSON(http.StatusInternalServerError, CommonResp{
@@ -83,13 +80,13 @@ func RegisterDevice(c *gin.Context) {
 	})
 
 	// 写入数据库不影响核心业务
-	for _, db := range readDBFromCtx(c) {
-		if v, ok := db.(SaveToken); ok {
-			if err = v.SaveToken(req.DeviceKey, req.DeviceToken); err != nil {
+	for _, store := range ReadTokenStoreFromCtx(c) {
+		if v, ok := store.(SaveToken); ok {
+			if err := v.SaveToken(req.DeviceKey, req.DeviceToken); err != nil {
 				l.Error("save token failed", zap.Error(err))
 				continue
 			}
-			l.Info("save token successfully", zap.String("dbName", db.Name()))
+			l.Info("save token successfully", zap.String("dbName", store.Name()))
 		}
 	}
 }
