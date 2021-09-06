@@ -9,7 +9,7 @@ bark-server 腾讯云SCF版本 - bark-server tencent cloud SCF version
 - 需要1个 **域名** 用于 Bark 客户端添加私有服务器
 - 支持 **bark 1.2.0**
 - 依赖 **bark-server v2.0.2**
-- 无需数据库和存储空间
+- 基于 **环境变量** 可无需数据库和存储空间
 - `v1.1.0` 基于 GORM 支持 PostgreSQL、MySQL、SQL Server 和 Clickhouse
 
 # 📚 安装说明
